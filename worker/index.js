@@ -3,6 +3,8 @@
 // formats: total-supply and circulating-supply are plain-text numbers
 // (what CoinMarketCap/CoinGecko poll), health and supply are JSON.
 
+import { handlePricing } from "./pricing.js";
+
 // Public Arbitrum One RPC endpoints, tried in order. Public RPCs rate-limit
 // by source IP, and a Worker shares Cloudflare's egress IPs with many other
 // tenants, so any single endpoint can answer "Too Many Requests" at any
@@ -251,55 +253,157 @@ function jsonResponse(body, status, extraHeaders = {}) {
   });
 }
 
-// Machine-readable index of everything this host serves, required for
-// api.autonomi.com as a machine-facing host
+// One description/link source for root JSON and the thin prose directory.
+// New prose is DRAFT for Jim's copy review. Destinations were checked in the
+// 2026-09-09 launch preflight linked in docs/specs/pricing-api.md, section 5.
+const DISCOVERY = {
+  service: "Autonomi API",
+  description: "Token supply, storage-cost estimates, and information about the APIs and tools for accessing Autonomi.",
+  source: "https://github.com/WithAutonomi/api",
+  overview: "Use this API for Autonomi token supply and upload-cost estimates, not to upload or retrieve network data. For network access, choose a local client below. The antd daemon provides local REST and gRPC interfaces for its SDKs and MCP tools; ant and ant-core connect directly. Installing antd does not start its service: follow the setup guide before using a daemon client.",
+  endpoints: [
+    {
+      path: "/api/health",
+      method: "GET",
+      content_type: "application/json",
+      description: "Checks whether this API service is responding. It does not check the Autonomi network or the freshness of supply or pricing data.",
+    },
+    {
+      path: "/api/total-supply",
+      method: "GET",
+      content_type: "text/plain",
+      description:
+        "Total ANT supply as a bare integer string (CoinMarketCap/CoinGecko format)",
+    },
+    {
+      path: "/api/circulating-supply",
+      method: "GET",
+      content_type: "text/plain",
+      description:
+        "Circulating ANT supply as a bare integer string: total supply minus excluded-wallet balances, read live from Arbitrum (CoinMarketCap/CoinGecko format)",
+    },
+    {
+      path: "/api/supply",
+      method: "GET",
+      content_type: "application/json",
+      description:
+        "Detailed supply breakdown including each excluded wallet's live balance",
+    },
+    {
+      path: "/api/pricing",
+      method: "GET",
+      content_type: "application/json",
+      description: "Upload-cost estimates for adding data to Autonomi, including storage fees and network transaction costs. These are not live quotes or guaranteed prices. For a file-specific estimate, use the Autonomi CLI or another supported client tool.",
+    },
+    {
+      path: "/llms.txt",
+      method: "GET",
+      content_type: "text/plain",
+      description: "A plain-text directory of these endpoints, client interfaces and setup guides.",
+    },
+  ],
+  interfaces: [
+    {
+      id: "antd",
+      name: "antd local daemon",
+      description: "Run antd locally to handle network operations through REST or gRPC. Install it, then start the service before connecting a client.",
+      access: "local-daemon",
+      documentation: [
+        { label: "Start and setup", url: "https://docs.autonomi.com/developers/sdk/install/start-the-local-daemon.md" },
+        { label: "REST reference", url: "https://docs.autonomi.com/developers/sdk/install/reference/rest-api.md" },
+        { label: "gRPC reference", url: "https://docs.autonomi.com/developers/sdk/install/reference/grpc-services.md" },
+      ],
+    },
+    {
+      id: "daemon-sdks",
+      name: "Daemon-backed language SDKs",
+      description: "These language clients call your running antd, not a hosted endpoint on this API. This connection model does not apply to every Autonomi SDK or FFI package.",
+      access: "daemon-client",
+      documentation: [
+        { label: "SDK setup", url: "https://docs.autonomi.com/developers/sdk/install.md" },
+        { label: "Language binding model", url: "https://docs.autonomi.com/developers/sdk/install/reference/language-bindings/overview.md" },
+      ],
+    },
+    {
+      id: "antd-mcp",
+      name: "antd MCP tools",
+      description: "The local MCP server connects AI tools to your running antd. This API does not host an MCP service.",
+      access: "daemon-client",
+      documentation: [
+        { label: "Setup and source", url: "https://github.com/WithAutonomi/ant-sdk/tree/main/antd-mcp" },
+        { label: "MCP guide", url: "https://docs.autonomi.com/developers/mcp/use-mcp-with-ai-tools.md" },
+      ],
+    },
+    {
+      id: "ant",
+      name: "ant command-line client",
+      description: "Use ant data commands to access the network directly. Its node-management daemon is separate from antd.",
+      access: "direct-network",
+      documentation: [
+        { label: "CLI guide", url: "https://docs.autonomi.com/developers/cli/use-the-cli.md" },
+        { label: "Command reference", url: "https://docs.autonomi.com/developers/cli/command-reference" },
+        { label: "Source", url: "https://github.com/WithAutonomi/ant-client" },
+      ],
+    },
+    {
+      id: "ant-core",
+      name: "ant-core Rust client",
+      description: "Build directly on the network with the native Rust client. ant-core is not a wrapper around a daemon or command-line tool.",
+      access: "direct-network",
+      documentation: [
+        { label: "Rust guide", url: "https://docs.autonomi.com/developers/developing-in-rust/build-directly-in-rust.md" },
+        { label: "Library reference", url: "https://docs.autonomi.com/developers/developing-in-rust/library-reference.md" },
+      ],
+    },
+  ],
+  documentation: [
+    { label: "Developer overview", url: "https://docs.autonomi.com/developers" },
+    { label: "Documentation llms.txt", url: "https://docs.autonomi.com/llms.txt" },
+    { label: "API source and README", url: "https://github.com/WithAutonomi/api" },
+    { label: "CLI file-specific cost estimates", url: "https://docs.autonomi.com/developers/cli/command-reference" },
+    { label: "Local REST API cost estimates", url: "https://docs.autonomi.com/developers/sdk/install/reference/rest-api.md" },
+  ],
+};
+
+// Machine-readable index remains additive, with local-origin navigation links.
 async function handleIndex(request) {
   const origin = new URL(request.url).origin;
   return jsonResponse(
     {
-      service: "ANT Supply API",
-      description:
-        "Public supply data for the Autonomi Network Token (ANT) on Arbitrum One",
-      source: "https://github.com/WithAutonomi/api",
-      endpoints: [
-        {
-          path: "/api/health",
-          method: "GET",
-          content_type: "application/json",
-          description: "Health check",
-        },
-        {
-          path: "/api/total-supply",
-          method: "GET",
-          content_type: "text/plain",
-          description:
-            "Total ANT supply as a bare integer string (CoinMarketCap/CoinGecko format)",
-        },
-        {
-          path: "/api/circulating-supply",
-          method: "GET",
-          content_type: "text/plain",
-          description:
-            "Circulating ANT supply as a bare integer string: total supply minus excluded-wallet balances, read live from Arbitrum (CoinMarketCap/CoinGecko format)",
-        },
-        {
-          path: "/api/supply",
-          method: "GET",
-          content_type: "application/json",
-          description:
-            "Detailed supply breakdown including each excluded wallet's live balance",
-        },
-      ],
-      _links: Object.fromEntries(
-        ["health", "total-supply", "circulating-supply", "supply"].map((p) => [
-          p,
-          `${origin}/api/${p}`,
-        ])
-      ),
+      ...DISCOVERY,
+      _links: Object.fromEntries(DISCOVERY.endpoints.map(endpoint => [
+        endpoint.path === "/llms.txt" ? "llms" : endpoint.path.slice("/api/".length),
+        `${origin}${endpoint.path}`,
+      ])),
     },
     200,
     { "Cache-Control": "public, max-age=3600" }
   );
+}
+
+async function handleLlms(request) {
+  const headers = {
+    "Allow": "GET, OPTIONS",
+    "X-Content-Type-Options": "nosniff",
+    "Cache-Control": "no-store",
+  };
+  if (request.method === "OPTIONS") return textResponse(null, 204, headers);
+  if (request.method !== "GET") {
+    return textResponse(request.method === "HEAD" ? null : "Method not allowed", 405, headers);
+  }
+  const link = ({ label, url }) => `- [${label}](${url})`;
+  const lines = [
+    `# ${DISCOVERY.service}`, "", DISCOVERY.description, "", DISCOVERY.overview, "",
+    "## Hosted information", "",
+    ...DISCOVERY.endpoints.filter(endpoint => endpoint.path !== "/llms.txt").map(endpoint =>
+      `- [${endpoint.method} ${endpoint.path}](https://api.autonomi.com${endpoint.path}): ${endpoint.description}`),
+    "", "## Network access from your client", "",
+    ...DISCOVERY.interfaces.flatMap(entry => [
+      `### ${entry.name}`, "", entry.description, "", ...entry.documentation.map(link), "",
+    ]),
+    "## Documentation", "", ...DISCOVERY.documentation.map(link), "",
+  ];
+  return textResponse(lines.join("\n"), 200, { ...headers, "Cache-Control": "public, max-age=3600" });
 }
 
 async function handleHealth() {
@@ -374,13 +478,17 @@ async function handleSupply(request) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
 
     switch (path) {
       case "/": // service index (the Vercel version routed / to health)
         return handleIndex(request);
+      case "/llms.txt":
+        return handleLlms(request);
+      case "/api/pricing":
+        return handlePricing(request, env);
       case "/api/health":
         return handleHealth();
       case "/api/total-supply":

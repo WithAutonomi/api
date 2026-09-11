@@ -1,6 +1,8 @@
-# ANT Supply API
+# Autonomi API
 
-Public supply data for the Autonomi Network Token (ANT), served at **https://api.autonomi.com**. CoinMarketCap and CoinGecko poll the two plain-text endpoints below; anything may read the JSON ones.
+Token supply, storage-cost estimates, and information about the APIs and tools for accessing Autonomi.
+
+The existing supply endpoints are served at **https://api.autonomi.com**. Pricing and expanded discovery are branch implementations, not yet deployed. CoinMarketCap and CoinGecko poll the two plain-text supply endpoints below; anything may read the JSON ones.
 
 Runs as a Cloudflare Worker named `api` (`worker/index.js`) in the Autonomi Cloudflare account. **This repository is the source of truth** — see [How this is deployed](#how-this-is-deployed).
 
@@ -17,6 +19,10 @@ Runs as a Cloudflare Worker named `api` (`worker/index.js`) in the Autonomi Clou
 | `GET /api/supply` | `application/json` | Detailed breakdown (see below) |
 
 The two plain-text endpoints return a bare number with no JSON wrapper — this is the format CoinMarketCap and CoinGecko require and **must not change**. All endpoints send `Access-Control-Allow-Origin: *`. Supply endpoints accept `GET`/`OPTIONS` only (405 otherwise, including `HEAD`).
+
+`/api/health` checks whether this API service is responding. It does not check the
+Autonomi network or the freshness of supply or pricing data. Its existing payload,
+including `service: "ANT Supply API"`, is unchanged.
 
 ### Circulating supply definition
 
@@ -62,6 +68,127 @@ None. The Worker reads public RPC endpoints and holds no credentials. If a secre
 ```bash
 npx wrangler dev          # local simulator on http://localhost:8787
 ```
+
+## Testing
+
+With Node **22.22.3**, run `node --test tests/*.test.mjs`, then
+`python3 scripts/adr-governance.py` for decision-record validation. No dependency
+installation is needed for these checks. The tests import the actual Worker
+with controlled RPC, Cache API and clock fixtures; they make no real network
+calls. Fixtures are synthetic, never deployment data. Node's typeless-module
+warning is expected with the existing package configuration. The new deadline
+test also uses Node's built-in MockTimers API, which reports an experimental
+warning on this pinned Node version; neither warning is suppressed.
+
+These are preservation tests, not new supply policy: they record current method,
+rounding, provider and stale-cache behavior, including malformed-reply quirks and
+cache failures that can still return 500. They exercise the Worker directly, not
+Cloudflare's HTTP transport (which may strip a HEAD response body).
+`.github/workflows/ci.yml` runs the checks read-only for the pricing feature
+branch and pull requests, with no deployment or cloud credentials. The existing
+deployment workflow runs the same checks before deploying and retains its live
+post-deployment probes; offline tests do not replace those probes.
+
+## Pricing reader and discovery — branch implementation, not yet deployed
+
+The [pricing contract](docs/specs/pricing-api.md) adds two routes to this same
+Worker. This branch is **not deploy-ready**: no approved pricing namespace ID
+has been supplied, and `wrangler.jsonc` is unchanged. There is no dummy binding,
+created resource or published pricing record in this work.
+
+Upload-cost estimates for adding data to Autonomi, including storage fees and
+network transaction costs. These are not live quotes or guaranteed prices. For a
+file-specific estimate, use the Autonomi CLI or another supported client tool.
+See [CLI file-specific cost estimates](https://docs.autonomi.com/developers/cli/command-reference)
+or [Local REST API cost estimates](https://docs.autonomi.com/developers/sdk/install/reference/rest-api.md).
+The REST interface runs through your local antd, not this hosted API.
+
+| New route | Behavior once deployed |
+|-----------|------------------------|
+| `GET /api/pricing` | Exact validated Inventory JSON bytes, or `503 {"error":"pricing_unavailable"}` |
+| `GET /llms.txt` | Short plain-text directory rendered from the same descriptions and links as root JSON |
+
+Pricing accepts `GET` and `OPTIONS` (204, empty). Other methods return 405;
+HEAD has no body. Failures and non-GET responses use `Cache-Control: no-store`.
+The route alone reads `env.PRICING_KV`, once, at fixed key `pricing:v1`, as a
+stream with KV `cacheTtl: 60`. Read plus stream consumption has a 2-second total
+deadline, a 65,536-byte value limit and a 1,024-byte metadata limit. Missing or
+broken storage cannot disable root, health, supply or the directory.
+
+The reader checks strict UTF-8, canonical JSON, the complete supported production
+record, publication metadata and SHA256 before returning the original bytes.
+It makes no pricing-provider/RPC queries, calculates no prices and keeps no
+last-good pricing cache. Inventory's independent verification owns evidence and
+price/example recomputation; the API's hashes detect corruption, not dishonest
+authorized publication or globally current KV visibility.
+
+Successful responses expose these browser-readable headers:
+
+- `X-Pricing-Revision`: the data commit, not the original producing code commit.
+- `X-Pricing-SHA256`: SHA256 of the original decoded JSON bytes.
+- `X-Pricing-Published-At`: publication time, **not a renewed observation date**.
+- `X-Pricing-Native-Expires-At`: seven days after original `source.data_as_of`.
+- `X-Pricing-Reference-State`: `valid` or `expired`.
+- `X-Pricing-Reference-Expires-At`: 48 hours after the recorded currency window end.
+
+Native expiry makes the route unavailable. Currency expiry alone does not:
+the original record and its dated examples remain unchanged. **Never use expired
+reference exchange rates or USD examples as current USD prices.** An independent
+eligible live conversion may still use the valid native rates. Both expiries are
+inclusive; eligibility is checked again after the read. HTTP caching is at most
+60 seconds, shortened to the next relevant expiry, with `must-revalidate` and no
+stale allowance. Conditional request headers do not enable 304 responses.
+
+Root retains every existing entry, link, header and method behavior, adding
+pricing, llms, an overview, client interfaces and labelled documentation. It and
+`llms.txt` use the single `DISCOVERY` object in `worker/index.js`; neither reads
+KV or fetches providers. Root links use the request origin for local exercises;
+the prose directory links hosted routes at the canonical production origin.
+The directory holds no changing prices, tool/version counts or installer commands.
+New `llms.txt` methods are GET/OPTIONS (204 preflight), otherwise 405 with
+`Method not allowed` (HEAD empty); its one-hour GET cache does not alter root rules.
+
+### Vendored source and offline checks
+
+Only the platform-neutral record validator and model are copied from
+[Inventory's reviewed revision 07fa880](https://github.com/WithAutonomi/inventory/commit/07fa880e2600bb5b2e2156f2b5ed87654f25e5f9).
+`worker/pricing/origin.json` records the exact source paths, revision and SHA256s.
+Do not edit those copies independently or import sibling checkouts. No collector,
+private evidence or Node filesystem/network code is shipped by the Worker.
+The shared model supplies fixed example-summary validation, not request-time
+monetary calculations.
+
+The existing `node --test tests/*.test.mjs` command picks up the new pricing,
+discovery and source-origin suites alongside all 139 retained preservation
+cases, with two owner-approved root-name assertion changes.
+`tests/pricing-fixtures.mjs` contains **invented test-only** rates, dates and
+identities; it is never imported by deployed code. Tests use explicit KV
+streams, fake clocks and controlled provider/cache fixtures, without cloud
+credentials, a sibling repository, collection or publication. CI commands,
+deployment workflow, package behavior and legacy Vercel files are unchanged.
+
+### Review notes and remaining gates
+
+- **Copy is draft, not Jim-approved final wording.** Review the new overview,
+  pricing explanation and client guidance in `DISCOVERY`. They distinguish hosted
+  information from local antd, daemon-backed SDK/MCP clients and direct ant/ant-core
+  network access. Link destinations and those distinctions come from the
+  [2026-09-09 verified-documentation preflight](https://github.com/WithAutonomi/developers/blob/feat/pricing-widget-v1/planning/research/pricing-launch-preflight-2026-09-09.md#verified-interface-documentation-links),
+  not a new live check or successful installation claim. Recheck links/content
+  before final publication; this implementation makes no live requests.
+- **Binding setup requires separate approval.** Obtain the actual approved KV
+  namespace ID, then add a reviewed `PRICING_KV` binding to this Worker in
+  `wrangler.jsonc`. It must identify the same namespace used by Inventory's
+  separately approved publisher. This change supplies no namespace ID and
+  creates/configures no resource; until setup/publication, pricing returns 503.
+- The proposed decisions still need human resolution; independent reviews and
+  exact-candidate CI belong to the orchestrator before unit closure. Local tests
+  are not the CI green of record or permission to deploy. CI status is reported
+  by the feature branch's [CI workflow](https://github.com/WithAutonomi/api/actions/workflows/ci.yml).
+- Deployment, first verified publication, unchanged-supply public probes and
+  pricing revision/hash visibility remain later owner-approved release actions.
+  `workers.dev` and production are the **same Worker**, not isolated staging.
+  No public availability, actual collection or successful daily refresh is claimed.
 
 ## Legacy
 

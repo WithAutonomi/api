@@ -11,6 +11,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+
+      - name: Supply preservation tests (offline)
+        run: node --test tests/*.test.mjs
+
+      - name: Validate ADRs
+        run: python3 scripts/adr-governance.py
 
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3

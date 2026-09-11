@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/WithAutonomi/inventory",
+  "revision": "07fa880e2600bb5b2e2156f2b5ed87654f25e5f9",
+  "files": [
+    {
+      "source": "pricing/record-contract.mjs",
+      "vendored": "worker/pricing/record-contract.mjs",
+      "sha256": "9d4a4db703a40d55b1e3682ed838c87fb0712a7be58ca023ef65f06fe0356247"
+    },
+    {
+      "source": "pricing/model.mjs",
+      "vendored": "worker/pricing/model.mjs",
+      "sha256": "1a32507b47de2302a0b10e6eaed936db41c819ed6f704b2daa4a0e65b5e8d89c"
+    }
+  ]
+}
