@@ -37,85 +37,98 @@ test('one read serves the complete dated record indefinitely, with no provider c
   const value = envelope();
   assert.deepEqual(await reply(await serve(t, value)), { status: 200, headers, body: JSON.stringify(value) });
 });
-test('unknown fields are ignored; examples are shape-checked, not recalculated', async t => {
+test('diagnostic and cosmetic changes do not reject or alter a usable envelope', async t => {
   const value = envelope();
   value.extra = { ignored: true };
+  value.data_revision = 'abcdef0';
+  value.payload_sha256 = null;
+  value.published_at = 'not a date';
+  value.record.generated_at = '2099-01-01T00:00:00.000Z';
+  value.record.source.name = 'ant.report v2';
+  value.record.source.captured_at = '2026-02-30T00:00:00.000Z';
+  value.record.source.provider_generated_at = 'not a date';
+  value.record.source.metadata_generated_at = '2099-01-01T00:00:00.000Z';
+  value.record.source.payment_url = 'not a URL';
+  value.record.calculation.client_version = '0.3.7';
+  value.record.calculation.client_revision = 'updated';
+  value.record.calculation.calculation_id = 'updated label';
+  value.record.calculation.source_chunk_bytes = '4194304';
+  value.record.calculation.amount_unit_bytes.GB = '1073741824';
   value.record.calculation.extra = 'future explanation';
   value.record.calculation.amount_unit_bytes.extra = 'ignored';
-  value.record.examples[0].total_usd = '123';
+  value.record.examples[0].total_usd = 123;
+  value.record.examples.push({ description: 'fourth example' });
+  value.record.assumptions = [];
+  value.record.exclusions = [''];
+  delete value.record.guidance;
   value.record.source.provenance = 'scheduled-collector';
-  value.record.source.record_url = null;
   const response = await serve(t, value);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), value);
 });
-test('storage, recent gas, fallback gas and FX durations vary independently', async t => {
+test('unused settings, windows, gas basis and FX evidence do not gate serving', async t => {
   const value = envelope();
   const r = value.record;
-  for (const [name, settings, duration] of [
-    ['storage', r.settings.storage, 259200], ['gas_recent', r.settings.gas.recent, 43200],
-    ['gas_fallback', r.settings.gas.fallback, 864000],
-  ]) {
-    settings.window_seconds = duration;
-    const w = r.windows[name];
-    w.cutoff_unix = w.latest_returned_bucket_unix - duration;
-    w.bucket_timestamps = w.bucket_timestamps.filter(time => time >= w.cutoff_unix);
-  }
-  r.settings.fx.window_seconds = 172800;
-  r.exchange_reference.window_start = r.exchange_reference.window_end - 172800000;
-  r.gas_basis = { single: 'fallback', batch: 'recent' };
-  assert.equal((await serve(t, value)).status, 200);
+  r.settings.storage.window_seconds++;
+  r.settings.gas.fallback.window_seconds++;
+  r.settings.gas.recent.bucket_seconds = 1800;
+  r.settings.fx.window_seconds = 0;
+  r.settings.storage.method = 'median';
+  r.windows.storage.bucket_timestamps = [0, 0];
+  r.windows.gas_recent.bucket_timestamps[0]++;
+  r.windows.gas_fallback.bucket_timestamps = [];
+  r.gas_basis = { single: 'fallback', batch: 'storage' };
+  r.exchange_reference.source = 'updated provider label';
+  r.exchange_reference.method = 'mean';
+  r.exchange_reference.window_start = r.exchange_reference.window_end + 1;
+  r.exchange_reference.samples.ant_usd.first_sample_at = r.exchange_reference.window_end;
+  r.exchange_reference.samples.eth_usd.last_sample_at = r.exchange_reference.window_end + 1;
+  delete r.exchange_reference.samples.eth_usd.source_url;
+  const response = await serve(t, value);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), value);
+});
+test('only the required record core is needed; dates allow exactly 60 seconds future', async t => {
+  const now = Date.parse('2026-09-09T00:00:00.000Z');
+  t.mock.method(Date, 'now', () => now);
+  const value = { record: {
+    schema_version: 1, kind: 'upload-pricing-reference',
+    calculation: { calculation_version: '2' },
+    source: { data_as_of: new Date(now + 60000).toISOString() },
+    rates: record.rates,
+    exchange_reference: { window_end: now + 60000, exchange: record.exchange_reference.exchange },
+  } };
+  const response = await serve(t, value);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), value);
 });
 
 for (const [name, change] of [
   ['non-object', e => { e.record = []; }],
-  ['missing field', e => { delete e.record.guidance; }],
+  ['missing field', e => { delete e.record.rates.single_ant_per_chunk; }],
   ['wrong kind', e => { e.record.kind = 'indicative-upload-pricing'; }],
   ['wrong schema type', e => { e.record.schema_version = '1'; }],
-  ['unsupported calculation', e => { e.record.calculation.calculation_version = 2; }],
-  ['model parameter', e => { e.record.calculation.source_chunk_bytes = '4194304'; }],
-  ['unit parameter', e => { e.record.calculation.amount_unit_bytes.GB = '1073741824'; }],
-  ['bad revision', e => { e.data_revision = 'not a revision'; }],
-  ['bad hash shape', e => { e.payload_sha256 = null; }],
-  ['impossible calendar date', e => { e.record.source.captured_at = '2026-02-30T00:00:00.000Z'; }],
-  ['source date order', e => { e.record.source.data_as_of = e.record.generated_at; }],
-  ['future date', e => { e.record.generated_at = e.published_at = '2099-01-01T00:00:00.000Z'; }],
-  ['metadata after generation', e => { e.record.source.metadata_generated_at = e.published_at; }],
-  ['capture after generation', e => { e.record.source.captured_at = e.published_at; }],
-  ['publication date order', e => { e.published_at = e.record.source.data_as_of; }],
-  ['non-UTC date', e => { e.record.source.captured_at = '2026-09-08T18:14:19+00:00'; }],
-  ['storage duration mismatch', e => { e.record.settings.storage.window_seconds++; }],
-  ['gas duration mismatch', e => { e.record.settings.gas.fallback.window_seconds++; }],
-  ['resolution mismatch', e => { e.record.settings.gas.recent.bucket_seconds = 1800; }],
-  ['invalid settings', e => { e.record.settings.fx.window_seconds = 0; }],
-  ['wrong aggregation method', e => { e.record.settings.storage.method = 'median'; }],
-  ['duplicate buckets', e => { e.record.windows.storage.bucket_timestamps[1] = e.record.windows.storage.bucket_timestamps[0]; }],
-  ['unaligned buckets', e => { e.record.windows.gas_recent.bucket_timestamps[0]++; }],
-  ['empty selected window', e => { e.record.windows.gas_fallback.bucket_timestamps = []; }],
-  ['out-of-window bucket', e => { e.record.windows.storage.bucket_timestamps[0] = 0; }],
-  ['bucket after data-as-of', e => { e.record.source.data_as_of = '2026-09-01T00:00:00.000Z'; }],
-  ['unknown gas basis', e => { e.record.gas_basis.batch = 'storage'; }],
-  ['FX duration mismatch', e => { e.record.exchange_reference.window_end++; }],
-  ['FX method mismatch', e => { e.record.exchange_reference.method = 'mean'; }],
-  ['FX window after generation', e => { e.record.exchange_reference.window_start += 86400000; e.record.exchange_reference.window_end += 86400000; }],
-  ['FX sample order', e => { e.record.exchange_reference.samples.ant_usd.first_sample_at = e.record.exchange_reference.window_end; }],
-  ['FX sample outside interval', e => { e.record.exchange_reference.samples.eth_usd.last_sample_at = e.record.exchange_reference.window_end + 1; }],
-  ['missing URL', e => { delete e.record.exchange_reference.samples.eth_usd.source_url; }],
-  ['bad provenance shape', e => { e.record.source.provenance = 'scheduled-collector'; }],
-  ['bad explanation', e => { e.record.assumptions = ['']; }],
-  ['bad examples', e => { e.record.examples[1].unit = 'TB'; }],
-  ['bad example money', e => { e.record.examples[0].storage_ant = 1; }],
+  ['unsupported calculation', e => { e.record.calculation.calculation_version = '3'; }],
+  ['numeric calculation version', e => { e.record.calculation.calculation_version = 2; }],
+  ['impossible calendar date', e => { e.record.source.data_as_of = '2026-02-30T00:00:00.000Z'; }],
+  ['non-UTC date', e => { e.record.source.data_as_of = '2026-09-08T18:14:19+00:00'; }],
+  ['future source date', e => { e.record.source.data_as_of = new Date(Date.now() + 60001).toISOString(); }],
+  ['future FX date', e => { e.record.exchange_reference.window_end = Date.now() + 60001; }],
+  ['nonpositive FX date', e => { e.record.exchange_reference.window_end = 0; }],
+  ['noninteger FX date', e => { e.record.exchange_reference.window_end += 0.5; }],
+  ['string FX date', e => { e.record.exchange_reference.window_end = String(e.record.exchange_reference.window_end); }],
 ]) {
   test(`rejects ${name}`, async t => {
+    t.mock.method(Date, 'now', () => Date.parse('2026-09-09T00:00:00.000Z'));
     const value = envelope(); change(value);
     await unavailable(await serve(t, value));
   });
 }
-test('all six required rates reject nonpositive, numeric, exponent and overprecision values', async t => {
+test('all six required rates reject nonpositive, numeric, exponent, whitespace and overprecision values', async t => {
   forbidIO(t);
   for (const group of ['rates', 'exchange']) {
     const keys = Object.keys(group === 'rates' ? record.rates : record.exchange_reference.exchange);
-    for (const key of keys) for (const bad of ['0', '-1', 1, '1e-8', '0.' + '0'.repeat(24) + '1', '1'.repeat(25)]) {
+    for (const key of keys) for (const bad of ['0', '-1', 1, '1e-8', ' 1', '1\n', '0.' + '0'.repeat(24) + '1', '1'.repeat(25)]) {
       const value = envelope();
       (group === 'rates' ? value.record.rates : value.record.exchange_reference.exchange)[key] = bad;
       await unavailable(await worker.fetch(request('/api/pricing'), {

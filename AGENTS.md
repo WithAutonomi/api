@@ -7,7 +7,10 @@
   accounting, rounding, methods/preflight/errors, CORS, caching, provider fallback,
   last-good behavior and health contracts. Pricing is not supply cleanup.
 - Inventory owns pricing collection, calculations and authoritative maths tests.
-  The API reads one saved envelope with bounded, basic validation; it does not
+  The API reads one saved envelope, checking only objects, schema/kind, calculation
+  version string "2", six bounded positive decimal-string rates and actual source/FX
+  dates (at most 60 seconds future). Diagnostic metadata and unused producer fields
+  do not gate serving; return the whole envelope unchanged. It does not
   execute the model, recompute hashes/examples, validate producer evidence or call
   pricing providers. Valid saved prices and saved currency medians never expire;
   preserve observation, currency, generation and publication dates separately.

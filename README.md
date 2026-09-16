@@ -30,19 +30,36 @@ The two plain-text endpoints return a bare number with no JSON wrapper — this 
 
 `GET /api/pricing` reads binding `PRICING_KV`, key `pricing:v1`, exactly once.
 The JSON envelope is `{record, data_revision, payload_sha256, published_at}`.
-The record has schema version `1`, kind `upload-pricing-reference` and fixed
-calculation version **string** `"2"`. It includes native storage/gas rates, saved
-ANT/USD and ETH/USD medians, independent storage/recent-gas/fallback-gas/FX
-settings and actual observation windows, gas basis per method, three dated
-examples, source dates/URLs, assumptions, exclusions and CLI guidance.
+The API requires an envelope object containing a record object with this core:
 
-Inventory owns collection, exact arithmetic and example correctness. The API
-checks required shapes, supported model identity/parameters, positive decimal
-rates, real ordered dates and settings/window relationships. Unknown extra
-fields are ignored. It does not execute the model, reproduce aggregation or
-coverage evidence, recompute examples/hashes, query Git or call pricing providers.
-The revision (40 hex characters), payload hash (64 hex characters) and publication
-date describe publication; they are not observation dates or proof of freshness.
+| Record field | Meaning and reader check |
+| --- | --- |
+| `schema_version`, `kind` | Number `1` and string `"upload-pricing-reference"` |
+| `calculation.calculation_version` | String `"2"`, the known calculation semantics; other model metadata is not pinned here |
+| `rates.single_ant_per_chunk`, `rates.batch_ant_per_leaf` | Whole ANT storage price per billed chunk or batch leaf |
+| `rates.single_eth_per_chunk`, `rates.batch_eth_per_leaf` | Whole ETH gas price per billed chunk or batch leaf, not per transaction |
+| `exchange_reference.exchange.ant_usd`, `exchange_reference.exchange.eth_usd` | Saved USD medians per ANT and ETH |
+| `source.data_as_of` | Actual network observation date: valid UTC calendar string `YYYY-MM-DDTHH:mm:ss[.sss]Z` |
+| `exchange_reference.window_end` | Saved currency date: positive safe-integer Unix milliseconds representing a valid date |
+
+All six prices must be positive unsigned decimal strings, at most 24 integer and
+24 fractional digits, with no whitespace, exponent notation or coercion. Both
+required dates must be no more than 60 seconds in the future; neither expires.
+
+Inventory owns collection, full record validation, exact arithmetic and example
+correctness. Its [pricing record](https://github.com/WithAutonomi/inventory/blob/feat/pricing-slim-v1/pricing.json)
+is a **private source requiring organisation access**. The complete producer
+record also carries settings, observation windows, gas basis, examples, source
+URLs, assumptions, exclusions and CLI guidance. The API serves the entire saved
+envelope unchanged, but does not revalidate those unused fields, provider labels,
+client versions/revisions, chunk parameters or generation/capture/provider dates.
+It does not execute the model, reproduce aggregation or coverage evidence,
+recompute examples/hashes, query Git or call pricing providers. Unknown fields
+and cosmetic changes do not make otherwise usable pricing unavailable.
+
+The producer's revision (40 hex characters), payload hash (64 hex characters)
+and publication date are diagnostic only: the reader does not validate or require
+them. They are not observation dates or proof of freshness.
 
 Valid network prices and saved FX **never expire**. Averaging durations are not
 expiry limits. Keep source data-as-of, saved currency window/sample dates,
@@ -67,6 +84,22 @@ are unchanged. No KV namespace binding/ID, route or secret is added by this work
 without the separately approved binding/data setup pricing returns 503. The two
 [API Proposed ADRs](docs/adr/README.md) remain Proposed; local implementation is
 not acceptance or release approval.
+
+Minimal **documentation-only** binding example for a separately approved future
+`wrangler.jsonc` change (the ID below is a placeholder, not a real namespace):
+
+```json
+{
+  "kv_namespaces": [
+    { "binding": "PRICING_KV", "id": "<APPROVED_PRICING_KV_NAMESPACE_ID>" }
+  ]
+}
+```
+
+This example configures nothing. Resource creation, the real binding, deployment,
+producer activation and publication of `pricing:v1` each remain behind the
+separate activation approval gate; no secret or deployment configuration changes
+are included here.
 
 ### Circulating supply definition
 
