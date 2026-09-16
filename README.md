@@ -79,27 +79,13 @@ Allow/CORS methods `GET, OPTIONS`. No pricing cache, TTL or expiry header is add
 Only the pricing path accesses pricing KV; supply and health retain their original
 responses, methods, caches, wallet accounting, RPC order and fallback behavior.
 
-**Not configured for publication:** `wrangler.jsonc` and the deployment workflow
-are unchanged. No KV namespace binding/ID, route or secret is added by this work;
-without the separately approved binding/data setup pricing returns 503. The two
-[API Proposed ADRs](docs/adr/README.md) remain Proposed; local implementation is
-not acceptance or release approval.
-
-Minimal **documentation-only** binding example for a separately approved future
-`wrangler.jsonc` change (the ID below is a placeholder, not a real namespace):
-
-```json
-{
-  "kv_namespaces": [
-    { "binding": "PRICING_KV", "id": "<APPROVED_PRICING_KV_NAMESPACE_ID>" }
-  ]
-}
-```
-
-This example configures nothing. Resource creation, the real binding, deployment,
-producer activation and publication of `pricing:v1` each remain behind the
-separate activation approval gate; no secret or deployment configuration changes
-are included here.
+**Namespace configured:** `wrangler.jsonc` binds `PRICING_KV` to the existing
+approved namespace. Deployment, publisher activation and data availability remain
+separate steps; availability is not verified until the first approved live run.
+Publication remains disabled during setup, and missing or invalid `pricing:v1`
+still returns 503. The deployment workflow, routes and secrets are unchanged.
+The two [API Proposed ADRs](docs/adr/README.md) remain Proposed; this configuration
+change is not ADR acceptance or proof of live publication.
 
 ### Circulating supply definition
 

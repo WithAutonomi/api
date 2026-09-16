@@ -17,6 +17,10 @@
     "enabled": true
   },
 
+  "kv_namespaces": [
+    { "binding": "PRICING_KV", "id": "c4c210fcdf1342678f9fed3710c42486" }
+  ],
+
   // Production domain — enabled by a reviewed commit, never from the
   // dashboard. Claims api.autonomi.com away from the former Vercel CNAME.
   "routes": [
