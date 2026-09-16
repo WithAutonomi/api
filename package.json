@@ -7,6 +7,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "dev": "vercel dev"
+    "dev": "vercel dev",
+    "test": "node --test tests/pricing.test.mjs tests/supply.test.mjs tests/discovery.test.mjs",
+    "bundle:check": "WRANGLER_SEND_METRICS=false npx --yes wrangler@4.127.0 versions upload --dry-run --outdir .wrangler/bundle"
   }
 }

@@ -1,0 +1,24 @@
+adr-standard consumer kit
+
+Copyright (c) 2024-2025 David Irvine
+Copyright (c) 2026 adr-standard contributors
+
+This consumer kit adapts an ADR governance harness originating in
+WithAutonomi/ant-node commit 1e9dc01ffbd896f8c0c453808e87cfd73d688e8c and
+reviewed directly in WithAutonomi/adr-workbench commit
+88f34671f0bd1992b086ee8216eca2787c71071a. Accepted process authority is
+adr-workbench ADR-0003 at commit 3b4463b9074e8bc48cfca755569995a4f26d7ee8.
+
+Adapted consumer files are AGENT-GUIDANCE.md, docs/adr/README.md,
+docs/adr/TEMPLATE.md, docs/adr/TOOLING.md, scripts/adr-governance.py, and
+.github/workflows/adr-governance.yml. Modifications add repository-neutral
+wording, distribution guidance, and licensing/provenance notices while retaining
+the inherited executable gate and consumer-workflow behaviour.
+
+This notice applies only to the ten-file consumer kit. In the source distribution
+it is kit/NOTICE; direct installation places it at docs/adr/NOTICE. It does not
+apply to or relicense the consumer repository as a whole.
+
+The consumer kit is available under the MIT License or Apache License 2.0, at the
+recipient's option. See LICENSE-MIT and LICENSE-APACHE in this distribution (or
+docs/adr/LICENSE-MIT and docs/adr/LICENSE-APACHE after installation).

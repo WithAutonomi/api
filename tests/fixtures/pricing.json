@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "kind": "upload-pricing-reference",
+  "generated_at": "2026-09-08T18:58:22.162Z",
+  "source": {
+    "name": "ant.report",
+    "payment_url": "https://www.ant.report/api/v1/payment?window_secs=604800&sections=overall,volume,methods,store_cost,total_cost",
+    "meta_url": "https://www.ant.report/api/v1/meta",
+    "data_as_of": "2026-09-08T18:12:39.000Z",
+    "provider_generated_at": "2026-09-08T18:14:20.000Z",
+    "metadata_generated_at": "2026-09-08T18:14:00.000Z",
+    "captured_at": "2026-09-08T18:14:19.575Z",
+    "provenance": "mapped-observation",
+    "record_url": "https://github.com/WithAutonomi/inventory/blob/750190513af61f88a15ab966088b2ca4dfc77553/pricing.json"
+  },
+  "settings": {
+    "storage": {
+      "method": "weighted-mean",
+      "window_seconds": 604800,
+      "bucket_seconds": 86400
+    },
+    "fx": {
+      "method": "median",
+      "window_seconds": 86400
+    },
+    "gas": {
+      "method": "weighted-mean",
+      "recent": {
+        "window_seconds": 86400,
+        "bucket_seconds": 3600
+      },
+      "fallback": {
+        "window_seconds": 604800,
+        "bucket_seconds": 86400
+      }
+    }
+  },
+  "calculation": {
+    "calculation_id": "inventory-pricing-prototype",
+    "calculation_version": "2",
+    "client_version": "0.3.6",
+    "client_revision": "dbc01ce8fdbdfe9ac4d064d35f36b4684bf6a616",
+    "source_chunk_bytes": "4190208",
+    "min_source_bytes": "3",
+    "min_chunks": "3",
+    "auto_batch_min_chunks": "64",
+    "single_wave_max_chunks": "64",
+    "batch_max_leaves": "256",
+    "max_source_bytes": "1000000000000000",
+    "max_amount_digits": "13",
+    "amount_unit_bytes": {
+      "KB": "1000",
+      "MB": "1000000",
+      "GB": "1000000000",
+      "TB": "1000000000000"
+    }
+  },
+  "rates": {
+    "single_ant_per_chunk": "0.077540592103446638461538",
+    "single_eth_per_chunk": "0.000001031130975002955724",
+    "batch_ant_per_leaf": "0.066554233401708281100478",
+    "batch_eth_per_leaf": "0.000000070129208637799048"
+  },
+  "windows": {
+    "storage": {
+      "bucket_seconds": 86400,
+      "cutoff_unix": 1788220800,
+      "latest_returned_bucket_unix": 1788825600,
+      "bucket_timestamps": [
+        1788307200,
+        1788393600,
+        1788480000,
+        1788566400,
+        1788652800,
+        1788739200,
+        1788825600
+      ]
+    },
+    "gas_recent": {
+      "bucket_seconds": 3600,
+      "cutoff_unix": 1788768000,
+      "latest_returned_bucket_unix": 1788854400,
+      "bucket_timestamps": [
+        1788771600,
+        1788786000,
+        1788804000,
+        1788807600,
+        1788811200,
+        1788814800,
+        1788818400,
+        1788822000,
+        1788836400,
+        1788847200,
+        1788850800,
+        1788854400
+      ]
+    },
+    "gas_fallback": {
+      "bucket_seconds": 86400,
+      "cutoff_unix": 1788220800,
+      "latest_returned_bucket_unix": 1788825600,
+      "bucket_timestamps": [
+        1788307200,
+        1788393600,
+        1788480000,
+        1788566400,
+        1788652800,
+        1788739200,
+        1788825600
+      ]
+    }
+  },
+  "gas_basis": {
+    "single": "recent",
+    "batch": "fallback"
+  },
+  "exchange_reference": {
+    "source": "CoinGecko",
+    "method": "median",
+    "window_start": 1788807501821,
+    "window_end": 1788893901821,
+    "exchange": {
+      "ant_usd": "0.036937734120977284",
+      "eth_usd": "2484.799259818703"
+    },
+    "samples": {
+      "ant_usd": {
+        "source_url": "https://api.coingecko.com/api/v3/coins/autonomi/market_chart?vs_currency=usd&days=1",
+        "first_sample_at": 1788807600000,
+        "last_sample_at": 1788893790000
+      },
+      "eth_usd": {
+        "source_url": "https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=1",
+        "first_sample_at": 1788807600000,
+        "last_sample_at": 1788893770000
+      }
+    }
+  },
+  "examples": [
+    {
+      "amount": "1",
+      "unit": "MB",
+      "method": "single",
+      "billed_units": "3",
+      "billing_unit": "chunk",
+      "storage_ant": "0.232621776310339915384614",
+      "transaction_fee_eth": "0.000003093392925008867172",
+      "storage_usd": "0.008592521324100787941339843704696417108376",
+      "transaction_fee_usd": "0.007686460450390445785298560128317916",
+      "total_usd": "0.016278981774491233726638403833014333108376"
+    },
+    {
+      "amount": "1",
+      "unit": "GB",
+      "method": "batch",
+      "billed_units": "256",
+      "billing_unit": "batch_leaf",
+      "storage_ant": "17.037883750837319961722368",
+      "transaction_fee_eth": "0.000017953077411276556288",
+      "storage_usd": "0.629340819972548103303022705842268042688512",
+      "transaction_fee_usd": "0.044609793463007863644338541054654464",
+      "total_usd": "0.673950613435555966947361246896922506688512"
+    },
+    {
+      "amount": "1",
+      "unit": "TB",
+      "method": "batch",
+      "billed_units": "238656",
+      "billing_unit": "batch_leaf",
+      "storage_ant": "15883.567126718091534315677568",
+      "transaction_fee_eth": "0.016736756416662569599488",
+      "storage_usd": "586.702979419407969304242917521454382796365312",
+      "transaction_fee_usd": "41.587479955889080882434604898201624064",
+      "total_usd": "628.290459375297050186677522419656006860365312"
+    }
+  ],
+  "normalization": "Sum shortest round-trippable source Number decimals exactly; normalize per-unit ratios once to 24 fractional digits, half-up; thereafter round only for display.",
+  "assumptions": [
+    "One logical upload; all source chunks payable; decimal data units; automatic client method selection.",
+    "Storage uses returned seven-day daily buckets, including a possibly partial latest day.",
+    "Gas uses returned recent-day hourly observations, or seven-day daily observations when the recent selection has no returned billed units for that method.",
+    "Provider completeness and omitted-bucket semantics are not independently established; this is not an exhaustive all-network average.",
+    "Saved USD conversions use a dated 24-hour currency median, not a live quote."
+  ],
+  "exclusions": [
+    "DataMap overhead, deduplication, runtime fallback and wallet-allowance approval fees.",
+    "No network-fullness or mixed-method weighting, quote multiplier or gas floor.",
+    "Reported gas may be a lower bound for intermediary-contract transactions, even with complete reported coverage."
+  ],
+  "guidance": {
+    "command": "ant file cost <PATH>",
+    "description": "Use the official Autonomi CLI for a file-specific estimate, not a guaranteed quote or final upload price."
+  }
+}
