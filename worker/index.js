@@ -257,9 +257,9 @@ function jsonResponse(body, status, extraHeaders = {}) {
 // Carried forward from the prior pricing draft; not a new live availability check.
 const DISCOVERY = {
   service: "Autonomi API",
-  description: "Token supply, storage-cost estimates, and information about the APIs and tools for accessing Autonomi.",
+  description: "Storage cost estimates for uploading data to Autonomi, ANT token supply information, and guidance for connecting applications and agents to the network.",
   source: "https://github.com/WithAutonomi/api",
-  overview: "Use this API for Autonomi token supply and upload-cost estimates, not to upload or retrieve network data. For network access, choose a local client below. The antd daemon provides local REST and gRPC interfaces for its SDKs and MCP tools; ant and ant-core connect directly. Installing antd does not start its service: follow the setup guide before using a daemon client.",
+  overview: "This is an information service, not a gateway to the Autonomi network: use it for planning and reference, not to upload or retrieve network data. For network operations over HTTP, install and start antd locally, then use its REST API. Daemon-backed SDKs and MCP tools connect to your running antd; the ant CLI and ant-core Rust client can connect directly. Follow the linked setup guides before using these interfaces.",
   endpoints: [
     {
       path: "/api/health",
@@ -292,7 +292,7 @@ const DISCOVERY = {
       path: "/api/pricing",
       method: "GET",
       content_type: "application/json",
-      description: "Upload-cost estimates for adding data to Autonomi, including storage fees and network transaction costs. These are not live quotes or guaranteed prices. For a file-specific estimate, use the Autonomi CLI or another supported client tool.",
+      description: "Rates and worked examples for estimating the cost of storing data on Autonomi. Storage rates are weighted averages of observed ant.report payments; transaction fees are averaged separately, and USD rates use historical CoinGecko medians. The record includes averaging windows, observation dates, calculation parameters, assumptions and exclusions. These are not live quotes or guaranteed prices. Collection or validation failure preserves the saved record and its original dates; inspect the returned observation dates.",
     },
     {
       path: "/llms.txt",
@@ -305,7 +305,7 @@ const DISCOVERY = {
     {
       id: "antd",
       name: "antd local daemon",
-      description: "Run antd locally to handle network operations through REST or gRPC. Install it, then start the service before connecting a client.",
+      description: "Run antd on your own machine to store and retrieve Autonomi data through REST or gRPC. Its default REST address is http://127.0.0.1:8082, not api.autonomi.com. Keep it local: the daemon has no built-in authentication. Its external-signer flow lets applications prepare an upload, inspect payment details, pay externally and finalize; it is not a guaranteed all-in quote including transaction fees.",
       access: "local-daemon",
       documentation: [
         { label: "Start and setup", url: "https://docs.autonomi.com/developers/sdk/install/start-the-local-daemon.md" },
@@ -336,7 +336,7 @@ const DISCOVERY = {
     {
       id: "ant",
       name: "ant command-line client",
-      description: "Use ant data commands to access the network directly. Its node-management daemon is separate from antd.",
+      description: "Use ant to access the network directly. Run ant file cost <PATH> for a file-specific estimate based on sampled network quotes, or ant --json file cost <PATH> for structured output. This does not upload, pay, reserve a price or cap later spending. The CLI obtains quotes and pays during upload; it currently has no separate quote-review-and-approve command. Its node-management daemon is separate from antd.",
       access: "direct-network",
       documentation: [
         { label: "CLI guide", url: "https://docs.autonomi.com/developers/cli/use-the-cli.md" },
