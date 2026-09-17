@@ -259,7 +259,7 @@ const DISCOVERY = {
   service: "Autonomi API",
   description: "Storage cost estimates for uploading data to Autonomi, ANT token supply information, and guidance for connecting applications and agents to the network.",
   source: "https://github.com/WithAutonomi/api",
-  overview: "This is an information service, not a gateway to the Autonomi network: use it for planning and reference, not to upload or retrieve network data. For network operations over HTTP, install and start antd locally, then use its REST API. Daemon-backed SDKs and MCP tools connect to your running antd; the ant CLI and ant-core Rust client can connect directly. Follow the linked setup guides before using these interfaces.",
+  overview: "This is an information service, not a gateway to the Autonomi network: use it for planning and reference, not to upload or retrieve network data. For network operations over HTTP, install and start antd locally, then use its REST API. Daemon-backed SDKs and MCP tools connect to your running antd; the ant CLI and ant-core Rust client can connect directly. Follow each tool's source and README for setup and reference links; use the documentation index to discover current documentation pages.",
   endpoints: [
     {
       path: "/api/health",
@@ -298,7 +298,7 @@ const DISCOVERY = {
       path: "/llms.txt",
       method: "GET",
       content_type: "text/plain",
-      description: "A plain-text directory of these endpoints, client interfaces and setup guides.",
+      description: "A plain-text directory of these endpoints, client repositories and documentation entry points.",
     },
   ],
   interfaces: [
@@ -308,9 +308,7 @@ const DISCOVERY = {
       description: "Run antd on your own machine to store and retrieve Autonomi data through REST or gRPC. Its default REST address is http://127.0.0.1:8082, not api.autonomi.com. Keep it local: the daemon has no built-in authentication. Its external-signer flow lets applications prepare an upload, inspect payment details, pay externally and finalize; it is not a guaranteed all-in quote including transaction fees.",
       access: "local-daemon",
       documentation: [
-        { label: "Start and setup", url: "https://docs.autonomi.com/developers/sdk/install/start-the-local-daemon.md" },
-        { label: "REST reference", url: "https://docs.autonomi.com/developers/sdk/install/reference/rest-api.md" },
-        { label: "gRPC reference", url: "https://docs.autonomi.com/developers/sdk/install/reference/grpc-services.md" },
+        { label: "Source and README", url: "https://github.com/WithAutonomi/ant-sdk/tree/main/antd" },
       ],
     },
     {
@@ -319,8 +317,7 @@ const DISCOVERY = {
       description: "These language clients call your running antd, not a hosted endpoint on this API. This connection model does not apply to every Autonomi SDK or FFI package.",
       access: "daemon-client",
       documentation: [
-        { label: "SDK setup", url: "https://docs.autonomi.com/developers/sdk/install.md" },
-        { label: "Language binding model", url: "https://docs.autonomi.com/developers/sdk/install/reference/language-bindings/overview.md" },
+        { label: "Source and README", url: "https://github.com/WithAutonomi/ant-sdk" },
       ],
     },
     {
@@ -329,8 +326,7 @@ const DISCOVERY = {
       description: "The local MCP server connects AI tools to your running antd. This API does not host an MCP service.",
       access: "daemon-client",
       documentation: [
-        { label: "Setup and source", url: "https://github.com/WithAutonomi/ant-sdk/tree/main/antd-mcp" },
-        { label: "MCP guide", url: "https://docs.autonomi.com/developers/mcp/use-mcp-with-ai-tools.md" },
+        { label: "Source and README", url: "https://github.com/WithAutonomi/ant-sdk/tree/main/antd-mcp" },
       ],
     },
     {
@@ -339,9 +335,7 @@ const DISCOVERY = {
       description: "Use ant to access the network directly. Run ant file cost <PATH> for a file-specific estimate based on sampled network quotes, or ant --json file cost <PATH> for structured output. This does not upload, pay, reserve a price or cap later spending. The CLI obtains quotes and pays during upload; it currently has no separate quote-review-and-approve command. Its node-management daemon is separate from antd.",
       access: "direct-network",
       documentation: [
-        { label: "CLI guide", url: "https://docs.autonomi.com/developers/cli/use-the-cli.md" },
-        { label: "Command reference", url: "https://docs.autonomi.com/developers/cli/command-reference" },
-        { label: "Source", url: "https://github.com/WithAutonomi/ant-client" },
+        { label: "Source and README", url: "https://github.com/WithAutonomi/ant-client" },
       ],
     },
     {
@@ -350,17 +344,14 @@ const DISCOVERY = {
       description: "Build directly on the network with the native Rust client. ant-core is not a wrapper around a daemon or command-line tool.",
       access: "direct-network",
       documentation: [
-        { label: "Rust guide", url: "https://docs.autonomi.com/developers/developing-in-rust/build-directly-in-rust.md" },
-        { label: "Library reference", url: "https://docs.autonomi.com/developers/developing-in-rust/library-reference.md" },
+        { label: "Source", url: "https://github.com/WithAutonomi/ant-client/tree/main/ant-core" },
       ],
     },
   ],
   documentation: [
-    { label: "Developer overview", url: "https://docs.autonomi.com/developers" },
+    { label: "Autonomi documentation", url: "https://docs.autonomi.com" },
     { label: "Documentation llms.txt", url: "https://docs.autonomi.com/llms.txt" },
     { label: "API source and README", url: "https://github.com/WithAutonomi/api" },
-    { label: "CLI file-specific cost estimates", url: "https://docs.autonomi.com/developers/cli/command-reference" },
-    { label: "Local REST API cost estimates", url: "https://docs.autonomi.com/developers/sdk/install/reference/rest-api.md" },
   ],
 };
 

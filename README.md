@@ -137,7 +137,7 @@ or invalid. Pricing responses use `Cache-Control: no-store`.
 
 ## File-specific estimates and actual quotes
 
-After installing the [Autonomi CLI](https://docs.autonomi.com/developers/cli/use-the-cli.md),
+After installing the [Autonomi CLI](https://github.com/WithAutonomi/ant-client),
 request an estimate for a local file:
 
 ```bash
@@ -159,8 +159,8 @@ The CLI obtains quotes and performs payment during upload. It currently has no
 separate `ant file quote` command or quote-review-and-approve step.
 
 Applications needing to inspect upload-specific payment details before paying
-can use the local daemon's
-[prepare, external payment and finalize flow](https://docs.autonomi.com/developers/sdk/install/reference/rest-api.md#external-signer-flow).
+can use the [local daemon](https://github.com/WithAutonomi/ant-sdk/tree/main/antd)'s
+prepare, external payment and finalize flow.
 This returns the details needed to construct payment; it is not a guaranteed
 all-in price including transaction fees.
 
@@ -171,7 +171,7 @@ all-in price including transaction fees.
 `antd` is a service you run on your own machine. It connects to Autonomi and
 exposes local REST and gRPC interfaces for applications.
 
-Follow the [daemon setup guide](https://docs.autonomi.com/developers/sdk/install/start-the-local-daemon.md)
+Follow the [daemon's README](https://github.com/WithAutonomi/ant-sdk/tree/main/antd)
 to install and start it. Its default REST address is `http://127.0.0.1:8082`.
 After startup, check the local service with:
 
@@ -179,7 +179,7 @@ After startup, check the local service with:
 curl http://127.0.0.1:8082/health
 ```
 
-Use the [REST reference](https://docs.autonomi.com/developers/sdk/install/reference/rest-api.md)
+The daemon's README provides setup instructions and an API-endpoint overview
 for storing and retrieving data, estimating file costs, wallet operations and
 externally signed payments. File-path arguments refer to files on the machine
 running the daemon.
@@ -199,8 +199,10 @@ Keep the daemon bound to the local machine: it has no built-in authentication.
   provides direct network access for Rust applications. Not every Autonomi SDK
   or native binding requires a daemon.
 
-For broader guidance, see the [developer documentation](https://docs.autonomi.com/developers)
-and its [agent-readable index](https://docs.autonomi.com/llms.txt).
+For broader guidance, see the [Autonomi documentation](https://docs.autonomi.com)
+and its [agent-readable index](https://docs.autonomi.com/llms.txt). Use that index
+to discover current documentation pages; each tool's README owns its detailed
+setup and reference links.
 
 ## ANT token supply
 
