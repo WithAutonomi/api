@@ -1,175 +1,242 @@
 # Autonomi API
 
-Public supply data for the Autonomi Network Token (ANT), served at **https://api.autonomi.com**. CoinMarketCap and CoinGecko poll the two plain-text endpoints below; anything may read the JSON ones.
+Storage cost estimates for uploading data to Autonomi, ANT token supply
+information, and guidance for connecting applications and agents to the network.
 
-Runs as a Cloudflare Worker named `api` (`worker/index.js`) in the Autonomi Cloudflare account. **This repository is the source of truth** — see [How this is deployed](#how-this-is-deployed).
+**Base URL:** https://api.autonomi.com
 
-Pricing and `/llms.txt` are prepared additions, not verified public availability.
-Root JSON and `/llms.txt` use one shared description/link source, carried forward
-from the prior pricing draft. They distinguish this hosted information service
-from local antd REST/gRPC clients, MCP tools and direct-network clients. No new
-upload, retrieval or MCP endpoint is hosted here.
+**This is an information service, not a gateway to the Autonomi network.**
+You cannot upload or retrieve network data through this host. For network
+operations over HTTP, run the [`antd` daemon](https://github.com/WithAutonomi/ant-sdk/tree/main/antd)
+locally and use its REST API. The [`ant` command-line client](https://github.com/WithAutonomi/ant-client)
+and native Rust client, [`ant-core`](https://github.com/WithAutonomi/ant-client/tree/main/ant-core),
+can also connect directly.
 
-**Stale-over-error:** if the Arbitrum RPC is unavailable, the supply endpoints serve the last good figure (from in-memory or Cache API fallback) with an `X-Stale: true` header instead of a 500 — a slightly stale number beats an error for CMC/CoinGecko. A 500 only occurs if no figure has ever been computed.
+## Which interface do I need?
 
-## Endpoint contract
-
-| Endpoint | Content type | Returns |
-|----------|--------------|---------|
-| `GET /` | `application/json` | Machine-readable index of everything this host serves |
-| `GET /api/health` | `application/json` | `{"status":"healthy","service":"ANT Supply API","timestamp":"<ISO>"}` |
-| `GET /api/total-supply` | `text/plain` | **Bare integer string**, e.g. `1200000000` |
-| `GET /api/circulating-supply` | `text/plain` | **Bare integer string**, e.g. `342278929` |
-| `GET /api/supply` | `application/json` | Detailed breakdown (see below) |
-| `GET /api/pricing` | `application/json` | Dated Inventory upload-pricing record and diagnostic publication metadata |
-| `GET /llms.txt` | `text/plain` | Thin directory of hosted information, local clients and setup links |
-
-The two plain-text endpoints return a bare number with no JSON wrapper — this is the format CoinMarketCap and CoinGecko require and **must not change**. All endpoints send `Access-Control-Allow-Origin: *`. Supply endpoints accept `GET`/`OPTIONS` only (405 otherwise, including `HEAD`).
-
-### Dated upload pricing
-
-`GET /api/pricing` reads binding `PRICING_KV`, key `pricing:v1`, exactly once.
-The JSON envelope is `{record, data_revision, payload_sha256, published_at}`.
-The API requires an envelope object containing a record object with this core:
-
-| Record field | Meaning and reader check |
+| What you want to do | Where to go |
 | --- | --- |
-| `schema_version`, `kind` | Number `1` and string `"upload-pricing-reference"` |
-| `calculation.calculation_version` | String `"2"`, the known calculation semantics; other model metadata is not pinned here |
-| `rates.single_ant_per_chunk`, `rates.batch_ant_per_leaf` | Whole ANT storage price per billed chunk or batch leaf |
-| `rates.single_eth_per_chunk`, `rates.batch_eth_per_leaf` | Whole ETH gas price per billed chunk or batch leaf, not per transaction |
-| `exchange_reference.exchange.ant_usd`, `exchange_reference.exchange.eth_usd` | Saved USD medians per ANT and ETH |
-| `source.data_as_of` | Actual network observation date: valid UTC calendar string `YYYY-MM-DDTHH:mm:ss[.sss]Z` |
-| `exchange_reference.window_end` | Saved currency date: positive safe-integer Unix milliseconds representing a valid date |
+| Estimate storage costs when planning an application or upload | This service: [`GET /api/pricing`](https://api.autonomi.com/api/pricing) |
+| Estimate the cost of a particular file | [`ant` CLI](https://github.com/WithAutonomi/ant-client): `ant file cost <PATH>` |
+| Store or retrieve data through a REST API | [`antd` local daemon](https://github.com/WithAutonomi/ant-sdk/tree/main/antd) |
+| Inspect upload-specific payment details before an application pays | [`antd`](https://github.com/WithAutonomi/ant-sdk/tree/main/antd): prepare, external payment and finalize |
+| Use Autonomi from an AI tool | [`antd-mcp`](https://github.com/WithAutonomi/ant-sdk/tree/main/antd-mcp), connected to your running daemon |
+| Use the network from a terminal | [`ant` CLI](https://github.com/WithAutonomi/ant-client) |
+| Build directly against the network in Rust | [`ant-core`](https://github.com/WithAutonomi/ant-client/tree/main/ant-core) |
+| Read ANT token supply figures | [`GET /api/supply`](https://api.autonomi.com/api/supply), with plain-number endpoints listed below |
 
-All six prices must be positive unsigned decimal strings, at most 24 integer and
-24 fractional digits, with no whitespace, exponent notation or coercion. Both
-required dates must be no more than 60 seconds in the future; neither expires.
+## Hosted endpoints
 
-Inventory owns collection, full record validation, exact arithmetic and example
-correctness. Its [pricing record](https://github.com/WithAutonomi/inventory/blob/feat/pricing-slim-v1/pricing.json)
-is a **private source requiring organisation access**. The complete producer
-record also carries settings, observation windows, gas basis, examples, source
-URLs, assumptions, exclusions and CLI guidance. The API serves the entire saved
-envelope unchanged, but does not revalidate those unused fields, provider labels,
-client versions/revisions, chunk parameters or generation/capture/provider dates.
-It does not execute the model, reproduce aggregation or coverage evidence,
-recompute examples/hashes, query Git or call pricing providers. Unknown fields
-and cosmetic changes do not make otherwise usable pricing unavailable.
+These public, read-only endpoints require no API key.
 
-The producer's revision (40 hex characters), payload hash (64 hex characters)
-and publication date are diagnostic only: the reader does not validate or require
-them. They are not observation dates or proof of freshness.
+| Endpoint | Format | Purpose |
+| --- | --- | --- |
+| `GET /` | JSON | Service directory, endpoint descriptions and links to network clients |
+| `GET /llms.txt` | Text | The same guidance in a readable directory for agents |
+| `GET /api/pricing` | JSON | Rates, examples and assumptions for Autonomi storage-cost estimates |
+| `GET /api/total-supply` | Plain number | Total ANT token supply |
+| `GET /api/circulating-supply` | Plain number | Circulating ANT token supply |
+| `GET /api/supply` | JSON | Supply breakdown, including excluded wallet balances |
+| `GET /api/health` | JSON | Whether this information service is responding, not network health or data freshness |
 
-Valid network prices and saved FX **never expire**. Averaging durations are not
-expiry limits. Keep source data-as-of, saved currency window/sample dates,
-generation and publication dates distinct. These are historical estimates from
-returned observations, not exhaustive network averages, live quotes or guaranteed
-prices. Use `ant file cost <PATH>` for a file-specific estimate, not a guaranteed
-final upload price. Independent windows can change without changing the fixed
-billing model; old records keep their own dates, settings and explanations.
+All endpoints allow cross-origin reads. The two plain-number supply responses
+are also used by CoinMarketCap and CoinGecko.
 
-The entire KV lookup/body read is bounded to two seconds and 65,536 UTF-8 bytes.
-Missing binding/key, read failure or invalid data returns
-`503 {"error":"pricing_unavailable"}` without touching supply providers.
-`OPTIONS` returns 204; other methods return
-`405 {"error":"method_not_allowed"}` (`HEAD` has no body). Every pricing response
-has `Cache-Control: no-store`, CORS `*`, `X-Content-Type-Options: nosniff` and
-Allow/CORS methods `GET, OPTIONS`. No pricing cache, TTL or expiry header is added.
-Only the pricing path accesses pricing KV; supply and health retain their original
-responses, methods, caches, wallet accounting, RPC order and fallback behavior.
+## Storage-cost estimates
 
-**Namespace configured:** `wrangler.jsonc` binds `PRICING_KV` to the existing
-approved namespace. Deployment, publisher activation and data availability remain
-separate steps; availability is not verified until the first approved live run.
-Publication remains disabled during setup, and missing or invalid `pricing:v1`
-still returns 503. The deployment workflow, routes and secrets are unchanged.
-The two [API Proposed ADRs](docs/adr/README.md) remain Proposed; this configuration
-change is not ADR acceptance or proof of live publication.
-
-### Circulating supply definition
-
-`circulating = 1,200,000,000 − Σ(excluded wallet balances)`, read live from the ANT contract on Arbitrum One (`0xa78d8321B20c4Ef90eCd72f2588AA985A4BDb684`) via public RPC endpoints (a fallback list in `worker/index.js`, tried in order because public RPCs rate-limit Cloudflare's shared egress IPs), cached for 60 seconds. Excluded wallets:
-
-1. **Network Emissions** — `0xdA4f3aF146f86850DE8e0D6FaE6EEe051Ad0AA44`
-2. **MAID Airdrop Wallet** — `0x675D39cdCEA31ba8313565b03D684A3bbe183a1a`
-3. **Foundation Cold Wallet** — `0x4f7B7fd0533d06D2ABFad07eAe57C9CE8E92B670`
-4. **Foundation Hot Wallet** — `0xd10A556E6A5111b5D4Dd5Ae06761d41F6CE1D499`
-5. **Shareholder NFT Contract** — `0x1617C551E1d63e693b0F6B42FE5352a79f2F9961`
-
-Changing this list is a change to the published circulating supply figure — treat it as a reviewed change (PR), and mirror any change in this README.
-
-### `/api/supply` response shape
-
-```json
-{
-  "total_supply": "1200000000",
-  "circulating_supply": "342278929",
-  "total_excluded": "857721070",
-  "excluded_wallets": [
-    { "name": "...", "address": "0x...", "purpose": "...", "balance": "...", "balance_with_decimals": "..." }
-  ],
-  "timestamp": "<ISO>",
-  "decimals": 18,
-  "token": { "name": "Autonomi Network Token", "symbol": "ANT", "contract": "0x...", "blockchain": "Arbitrum One" }
-}
-```
-
-## How this is deployed
-
-- **Config as code.** Worker code, routes, and settings live in this repo (`wrangler.jsonc`). The Cloudflare dashboard is for looking, not editing — dashboard changes are invisible to git and overwritten by the next deploy.
-- **Deploys run from GitHub Actions** (`.github/workflows/deploy.yml`) on every merge to `main`, using a scoped Cloudflare API token stored as the repo secret `CLOUDFLARE_API_TOKEN`. No laptop deploys, no personal credentials.
-- **Same service, two hostnames**: https://api.autonomi.workers.dev is the same deployed Worker as https://api.autonomi.com, not an isolated staging service. The existing deployment workflow calls it staging and runs public smoke checks; do not use that workflow or either public host as the local pricing gate. `workers.dev` may 403 some non-browser user agents; the production hostname remains the supply contract.
-- **Production domain** (`api.autonomi.com`) is declared in `wrangler.jsonc` — enabling/changing it happens via a reviewed commit.
-
-## Secrets
-
-None. The Worker reads public RPC endpoints and holds no credentials. If a secret is ever added, set it via `wrangler secret put` / Actions secrets and document its **name only** here.
-
-## Local checks and development
-
-On Node 22, from a checkout containing the original supply commit:
+Use `/api/pricing` to estimate the cost of storing data. Estimates include storage
+fees and blockchain transaction fees, based on observed payments. They are
+intended for planning and budgeting, not as live quotes or guaranteed upload prices.
 
 ```bash
-node --test tests/pricing.test.mjs tests/supply.test.mjs tests/discovery.test.mjs
-npm run bundle:check
-git diff --check
+curl https://api.autonomi.com/api/pricing
 ```
 
-`npm test` runs the same focused tests. Supply tests read the original Worker at
-[`b8c5fb5`](https://github.com/WithAutonomi/api/commit/b8c5fb557049d0163b99c29f23708ec02ced7255)
-from local Git and compare exact responses, provider requests, cache effects and
-errors against this branch under identical injected I/O. They also check that
-supply/health source sections are byte-identical. No public provider is contacted.
-The pricing fixture is a byte-for-byte copy of the reduced Inventory `pricing.json`
-prepared for this rebuild, preserving the real September 8 rates/dates and original
-record provenance. Test envelope metadata is synthetic, not publication evidence.
-Tests do not replay historical FX medians or duplicate Inventory's maths suite.
+The response separates:
 
-`bundle:check` uses pinned Wrangler **4.127.0** (the existing deployment tooling
-version), with metrics disabled, through `versions upload --dry-run`. It only
-compiles/checks into ignored `.wrangler/bundle`; it does not upload or deploy.
-`npx` may download that tool and its dependencies; no audit-driven upgrades or
-runtime dependencies are introduced. Never omit `--dry-run` for validation.
+- **Storage fees**, paid in ANT.
+- **Blockchain transaction fees**, paid in ETH.
+- **USD conversions**, using separately dated ANT and ETH exchange rates.
 
-Ordinary no-publish CI is `.github/workflows/test.yml`, job `test`, on pull requests
-and main/feature pushes. It requires no Cloudflare credentials and runs these same
-checks. CI on the actual branch is green of record; no branch push or CI result is
-claimed by local preparation. The existing deploy/public-smoke workflow is unchanged.
+It includes examples for 1 MB, 1 GB and 1 TB, the calculation model, source
+links, observation dates, averaging windows, assumptions and exclusions.
+The endpoint returns a saved reference dataset; it does not accept a file or
+an amount to quote.
 
-Root `AGENTS.md` and the pinned `scripts/adr-governance.py` are installed. Run
-`python3 scripts/adr-governance.py` for ADR handoff; its committed-diff checks do not
-fully validate uncommitted/new drafts (see `docs/adr/README.md`). ADR CI is wired in
-`.github/workflows/test.yml` but not yet executed. Integrated clean-context, adversarial and Craft reviews belong
-to the Inventory → API → website checkpoint, not a waiver. Implementation is
-prepared, not Done.
+### How the estimates are calculated
 
-Existing interactive development command (not part of the no-publish gate):
+Reference data is scheduled to refresh daily. The current calculation uses:
+
+| Component | Method |
+| --- | --- |
+| Storage | Seven-day weighted averages of payments reported by [ant.report](https://www.ant.report), calculated separately for ordinary and batch payments |
+| Transaction fees | Observed ETH fees per billed unit over the recent 24 hours, calculated separately for each payment method |
+| Transaction-fee fallback | A separate seven-day window, used only when the recent window contains no returned billed units for that method |
+| USD conversion | The median ANT/USD and ETH/USD observations from [CoinGecko](https://www.coingecko.com) over the preceding 24 hours |
+
+A weighted storage average divides the total observed ANT paid by the total
+billed units. It does not give a small upload the same weight as a large one.
+
+The calculation converts a data size into billable chunks or batch units,
+including the model's minimum chunk count and batch padding. Transaction-fee
+rates are **per billed unit, not per blockchain transaction**. Examples use
+decimal data units: 1 MB is 1,000,000 bytes.
+
+The response's `settings`, `windows`, `gas_basis` and `calculation` fields
+describe the actual method used for that record. Read them rather than assuming
+these durations or model parameters will never change.
+
+### What the estimate does not promise
+
+These are historical estimates, not live quotes, spending limits or guaranteed
+upload prices. The observations returned by the source are not a guarantee of
+complete coverage of every network payment.
+
+The model assumes one logical upload with all source chunks payable. It excludes
+DataMap overhead, which is the retrieval information needed to reconstruct a
+file; savings from chunks already stored; changes of payment method during an
+upload; and separate token-spending approval fees. Reported transaction fees may
+also omit some costs involving intermediary contracts.
+
+File contents, payment method, responding nodes, current prices and wallet state
+can all affect what an actual upload costs.
+
+### Dates and unavailable updates
+
+Network observations, currency observations, generation and publication have
+different dates. A successful HTTP request does not make the underlying prices
+new.
+
+If collection or validation fails, the service retains the last valid record and
+its original dates. A seven-day averaging window is **not** a seven-day expiry time. Consumers
+should display the observation dates and decide whether the record is suitable
+for their purpose.
+
+### Reading the response
+
+The top-level response contains `record` and publication metadata.
+
+| Field | Meaning |
+| --- | --- |
+| `record.rates` | ANT storage and ETH transaction-fee rates for each payment method |
+| `record.exchange_reference` | Saved USD conversion rates, their source and observation window |
+| `record.examples` | Worked estimates with storage, transaction fees and totals |
+| `record.calculation` | Calculation version and billing-model parameters |
+| `record.settings`, `record.windows`, `record.gas_basis` | Averaging methods, observation windows and selected transaction-fee window |
+| `record.source.data_as_of` | Network observations are current as of this date |
+| `record.assumptions`, `record.exclusions`, `record.guidance` | Interpretation limits and routes to file-specific estimates |
+| `data_revision`, `payload_sha256`, `published_at` | Publication diagnostics, not evidence of fresh network observations |
+
+Monetary values are decimal strings. Preserve their precision when calculating;
+round only for display. Hosted pricing uses whole ANT and ETH units, which
+differ from the smallest-unit amounts returned by some local client APIs.
+
+The pricing endpoint accepts `GET` and `OPTIONS`. It returns
+`503 {"error":"pricing_unavailable"}` if the saved record is missing, unreadable
+or invalid. Pricing responses use `Cache-Control: no-store`.
+
+## File-specific estimates and actual quotes
+
+After installing the [Autonomi CLI](https://github.com/WithAutonomi/ant-client),
+request an estimate for a local file:
 
 ```bash
-npx wrangler dev          # local simulator on http://localhost:8787
+ant file cost <PATH>
 ```
 
-## Legacy
+For machine-readable output:
 
-`/api/*.js` are the original Vercel serverless functions this Worker replaced (identical behaviour, verified byte-for-byte at migration). They are kept for reference until the Vercel project is retired, then removed.
+```bash
+ant --json file cost <PATH>
+```
+
+The command processes the file locally and estimates its cost using sampled
+network quotes. It does not upload or pay for the file. Its gas figure is an
+estimate too: the result is not a reserved price or a cap on a subsequent upload,
+and it is not guaranteed to be more accurate than a historical average.
+
+The CLI obtains quotes and performs payment during upload. It currently has no
+separate `ant file quote` command or quote-review-and-approve step.
+
+Applications needing to inspect upload-specific payment details before paying
+can use the [local daemon](https://github.com/WithAutonomi/ant-sdk/tree/main/antd)'s
+prepare, external payment and finalize flow.
+This returns the details needed to construct payment; it is not a guaranteed
+all-in price including transaction fees.
+
+## Accessing the Autonomi network
+
+### Local REST API
+
+`antd` is a service you run on your own machine. It connects to Autonomi and
+exposes local REST and gRPC interfaces for applications.
+
+Follow the [daemon's README](https://github.com/WithAutonomi/ant-sdk/tree/main/antd)
+to install and start it. Its default REST address is `http://127.0.0.1:8082`.
+After startup, check the local service with:
+
+```bash
+curl http://127.0.0.1:8082/health
+```
+
+The daemon's README provides setup instructions and an API-endpoint overview
+for storing and retrieving data, estimating file costs, wallet operations and
+externally signed payments. File-path arguments refer to files on the machine
+running the daemon.
+
+These requests go to your daemon, **not to `api.autonomi.com`**.
+Keep the daemon bound to the local machine: it has no built-in authentication.
+
+### Other client options
+
+- [Daemon-backed language SDKs](https://github.com/WithAutonomi/ant-sdk)
+  call your running `antd`.
+- [MCP tools](https://github.com/WithAutonomi/ant-sdk/tree/main/antd-mcp)
+  connect AI tools to that daemon. This hosted service does not provide an MCP endpoint.
+- The [`ant` CLI](https://github.com/WithAutonomi/ant-client) connects
+  directly to the network. Its node-management daemon is separate from `antd`.
+- [`ant-core`](https://github.com/WithAutonomi/ant-client/tree/main/ant-core)
+  provides direct network access for Rust applications. Not every Autonomi SDK
+  or native binding requires a daemon.
+
+For broader guidance, see the [Autonomi documentation](https://docs.autonomi.com)
+and its [agent-readable index](https://docs.autonomi.com/llms.txt). Use that index
+to discover current documentation pages; each tool's README owns its detailed
+setup and reference links.
+
+## ANT token supply
+
+Total supply is 1,200,000,000 ANT. Circulating supply subtracts the balances of
+the excluded wallets below from that total, using the ANT contract on Arbitrum
+One: `0xa78d8321B20c4Ef90eCd72f2588AA985A4BDb684`.
+
+| Excluded wallet | Address |
+| --- | --- |
+| Network Emissions | `0xdA4f3aF146f86850DE8e0D6FaE6EEe051Ad0AA44` |
+| MAID Airdrop Wallet | `0x675D39cdCEA31ba8313565b03D684A3bbe183a1a` |
+| Foundation Cold Wallet | `0x4f7B7fd0533d06D2ABFad07eAe57C9CE8E92B670` |
+| Foundation Hot Wallet | `0xd10A556E6A5111b5D4Dd5Ae06761d41F6CE1D499` |
+| Shareholder NFT Contract | `0x1617C551E1d63e693b0F6B42FE5352a79f2F9961` |
+
+`/api/supply` includes the total, circulating and excluded amounts, each excluded
+wallet's balance, token details and a timestamp.
+
+| Response field | Type and meaning |
+| --- | --- |
+| `total_supply`, `circulating_supply`, `total_excluded` | Strings containing whole ANT amounts |
+| `excluded_wallets` | Array of wallet objects: `name`, `address`, `purpose`, `balance` and `balance_with_decimals` are strings; `balance` is whole ANT and `balance_with_decimals` retains fractional ANT |
+| `timestamp` | ISO timestamp string for the calculated breakdown, retained when a saved result is served |
+| `decimals` | Number `18`, the token's decimal precision |
+| `token` | Object with string fields `name`, `symbol`, `contract` and `blockchain` |
+
+The plain-number endpoints return unwrapped integers for existing consumers.
+Circulating supply and the detailed breakdown use public blockchain RPC providers
+and a 60-second cache. Total supply is fixed and has a one-hour cache header.
+If providers fail, the service serves its last available good result with
+`X-Stale: true`; it returns an error if no fallback is available.
+Supply endpoints accept `GET` and `OPTIONS`.
+
+## Maintain and Contribute
+
+To maintain and contribute to this service, see [the contributor guide](CONTRIBUTING.md)
+for local development, testing, deployment and maintenance instructions.
