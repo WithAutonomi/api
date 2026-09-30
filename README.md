@@ -6,23 +6,21 @@ information, and guidance for connecting applications and agents to the network.
 **Base URL:** https://api.autonomi.com
 
 **This is an information service, not a gateway to the Autonomi network.**
-You cannot upload or retrieve network data through this host. For network
-operations over HTTP, run the [`antd` daemon](https://github.com/WithAutonomi/ant-sdk/tree/main/antd)
-locally and use its REST API. The [`ant` command-line client](https://github.com/WithAutonomi/ant-client)
-and native Rust client, [`ant-core`](https://github.com/WithAutonomi/ant-client/tree/main/ant-core),
-can also connect directly.
+You cannot upload, download or otherwise interact with network data through
+this host. To use the network, start at [Autonomi Developers](https://developers.autonomi.com).
+Agents should use the [developer `llms.txt`](https://developers.autonomi.com/llms.txt).
 
 ## Which interface do I need?
 
 | What you want to do | Where to go |
 | --- | --- |
 | Estimate storage costs when planning an application or upload | This service: [`GET /api/pricing`](https://api.autonomi.com/api/pricing) |
-| Estimate the cost of a particular file | [`ant` CLI](https://github.com/WithAutonomi/ant-client): `ant file cost <PATH>` |
-| Store or retrieve data through a REST API | [`antd` local daemon](https://github.com/WithAutonomi/ant-sdk/tree/main/antd) |
-| Inspect upload-specific payment details before an application pays | [`antd`](https://github.com/WithAutonomi/ant-sdk/tree/main/antd): prepare, external payment and finalize |
-| Use Autonomi from an AI tool | [`antd-mcp`](https://github.com/WithAutonomi/ant-sdk/tree/main/antd-mcp), connected to your running daemon |
-| Use the network from a terminal | [`ant` CLI](https://github.com/WithAutonomi/ant-client) |
-| Build directly against the network in Rust | [`ant-core`](https://github.com/WithAutonomi/ant-client/tree/main/ant-core) |
+| Get a file-specific estimate or make an upload payment | Current client guidance at [Autonomi Developers](https://developers.autonomi.com) |
+| Store or retrieve data through REST or gRPC | Run the local `antd` daemon; see [Autonomi Developers](https://developers.autonomi.com) |
+| Use Autonomi from an AI tool | Use daemon-backed MCP tools; see the [developer `llms.txt`](https://developers.autonomi.com/llms.txt) |
+| Build with a language SDK | Choose a current daemon-backed or direct client at [Autonomi Developers](https://developers.autonomi.com) |
+| Use the network from a terminal | Use the direct `ant` command-line client; see [Autonomi Developers](https://developers.autonomi.com) |
+| Build directly against the network in Rust | Use the native `ant-core` client; see [Autonomi Developers](https://developers.autonomi.com) |
 | Read ANT token supply figures | [`GET /api/supply`](https://api.autonomi.com/api/supply), with plain-number endpoints listed below |
 
 ## Hosted endpoints
@@ -31,8 +29,8 @@ These public, read-only endpoints require no API key.
 
 | Endpoint | Format | Purpose |
 | --- | --- | --- |
-| `GET /` | JSON | Service directory, endpoint descriptions and links to network clients |
-| `GET /llms.txt` | Text | The same guidance in a readable directory for agents |
+| `GET /` | JSON | Service directory, endpoint descriptions and network-access signposts |
+| `GET /llms.txt` | Text | The same signposts in a readable directory for agents |
 | `GET /api/pricing` | JSON | Rates, examples and assumptions for Autonomi storage-cost estimates |
 | `GET /api/total-supply` | Plain number | Total ANT token supply |
 | `GET /api/circulating-supply` | Plain number | Circulating ANT token supply |
@@ -107,10 +105,10 @@ Network observations, currency observations, generation and publication have
 different dates. A successful HTTP request does not make the underlying prices
 new.
 
-If collection or validation fails, the service retains the last valid record and
-its original dates. A seven-day averaging window is **not** a seven-day expiry time. Consumers
-should display the observation dates and decide whether the record is suitable
-for their purpose.
+If the publisher cannot collect or validate a replacement before publication,
+it leaves the previous saved record and its original dates in place. A seven-day
+averaging window is **not** a seven-day expiry time. Consumers should display the
+observation dates and decide whether the record is suitable for their purpose.
 
 ### Reading the response
 
@@ -135,74 +133,47 @@ The pricing endpoint accepts `GET` and `OPTIONS`. It returns
 `503 {"error":"pricing_unavailable"}` if the saved record is missing, unreadable
 or invalid. Pricing responses use `Cache-Control: no-store`.
 
-## File-specific estimates and actual quotes
+## File-specific estimates and upload payments
 
-After installing the [Autonomi CLI](https://github.com/WithAutonomi/ant-client),
-request an estimate for a local file:
+This service provides historical reference estimates; it does not inspect a
+file, request network quotes, reserve a price or take payment. Current Autonomi
+client tools can process a particular file and network conditions for a more
+specific estimate. Applications can also use local client workflows to inspect
+and authorize upload payments without sending those operations through this API.
 
-```bash
-ant file cost <PATH>
-```
-
-For machine-readable output:
-
-```bash
-ant --json file cost <PATH>
-```
-
-The command processes the file locally and estimates its cost using sampled
-network quotes. It does not upload or pay for the file. Its gas figure is an
-estimate too: the result is not a reserved price or a cap on a subsequent upload,
-and it is not guaranteed to be more accurate than a historical average.
-
-The CLI obtains quotes and performs payment during upload. It currently has no
-separate `ant file quote` command or quote-review-and-approve step.
-
-Applications needing to inspect upload-specific payment details before paying
-can use the [local daemon](https://github.com/WithAutonomi/ant-sdk/tree/main/antd)'s
-prepare, external payment and finalize flow.
-This returns the details needed to construct payment; it is not a guaranteed
-all-in price including transaction fees.
+For current commands, payment workflows and their limitations, start at
+[Autonomi Developers](https://developers.autonomi.com). Agents should discover
+the applicable guide through the [developer `llms.txt`](https://developers.autonomi.com/llms.txt).
+An estimate from any client is not a reserved price or spending cap.
 
 ## Accessing the Autonomi network
 
-### Local REST API
+Network operations happen through software running for the client, **not through
+`api.autonomi.com`**. The available routes serve different kinds of application:
 
-`antd` is a service you run on your own machine. It connects to Autonomi and
-exposes local REST and gRPC interfaces for applications.
+### Local APIs
 
-Follow the [daemon's README](https://github.com/WithAutonomi/ant-sdk/tree/main/antd)
-to install and start it. Its default REST address is `http://127.0.0.1:8082`.
-After startup, check the local service with:
+- Run the `antd` daemon when an application needs local REST or gRPC interfaces
+  for storing, retrieving, estimating costs or handling payments.
+- Use daemon-backed language SDKs when application code should call that local
+  service instead of handling network access directly.
+- Use daemon-backed MCP tools when an AI application or agent needs network tools.
 
-```bash
-curl http://127.0.0.1:8082/health
-```
+Treat the daemon as a local service and follow the current setup and security
+guidance at [Autonomi Developers](https://developers.autonomi.com).
 
-The daemon's README provides setup instructions and an API-endpoint overview
-for storing and retrieving data, estimating file costs, wallet operations and
-externally signed payments. File-path arguments refer to files on the machine
-running the daemon.
+### Direct clients
 
-These requests go to your daemon, **not to `api.autonomi.com`**.
-Keep the daemon bound to the local machine: it has no built-in authentication.
+- Use the `ant` command-line client for terminal-based estimates, uploads,
+  downloads and other network operations.
+- Use the native `ant-core` client when a Rust application should connect
+  directly rather than through a local daemon.
 
-### Other client options
-
-- [Daemon-backed language SDKs](https://github.com/WithAutonomi/ant-sdk)
-  call your running `antd`.
-- [MCP tools](https://github.com/WithAutonomi/ant-sdk/tree/main/antd-mcp)
-  connect AI tools to that daemon. This hosted service does not provide an MCP endpoint.
-- The [`ant` CLI](https://github.com/WithAutonomi/ant-client) connects
-  directly to the network. Its node-management daemon is separate from `antd`.
-- [`ant-core`](https://github.com/WithAutonomi/ant-client/tree/main/ant-core)
-  provides direct network access for Rust applications. Not every Autonomi SDK
-  or native binding requires a daemon.
-
-For broader guidance, see the [Autonomi documentation](https://docs.autonomi.com)
-and its [agent-readable index](https://docs.autonomi.com/llms.txt). Use that index
-to discover current documentation pages; each tool's README owns its detailed
-setup and reference links.
+For people, [Autonomi Developers](https://developers.autonomi.com) owns the
+current routes into these tools. For agents, the
+[developer `llms.txt`](https://developers.autonomi.com/llms.txt) points to the
+current guides and source locations. For broader context, see the
+[network overview `llms.txt`](https://autonomi.com/llms.txt).
 
 ## ANT token supply
 

@@ -123,8 +123,11 @@ Allow/CORS methods `GET, OPTIONS`.
 
 Keep root JSON and `/llms.txt` on the shared descriptions and links in
 `worker/index.js`, consistent with the README. Distinguish this information
-service from client-run network access. Do not promise reserved CLI quotes or
-equate new publication dates with fresh observations.
+service from client-run network access. Route changing setup, command and source
+details through `developers.autonomi.com` and its `llms.txt`; do not hard-code
+deep documentation paths or mutable repository branches in public discovery.
+Do not promise reserved client quotes or equate new publication dates with fresh
+observations.
 
 Preserve supply URLs, bare-number responses, JSON types, rounding, wallet
 accounting, provider fallback, caching, method handling and CORS. Changing excluded

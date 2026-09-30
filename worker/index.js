@@ -259,7 +259,7 @@ const DISCOVERY = {
   service: "Autonomi API",
   description: "Storage cost estimates for uploading data to Autonomi, ANT token supply information, and guidance for connecting applications and agents to the network.",
   source: "https://github.com/WithAutonomi/api",
-  overview: "This is an information service, not a gateway to the Autonomi network: use it for planning and reference, not to upload or retrieve network data. For network operations over HTTP, install and start antd locally, then use its REST API. Daemon-backed SDKs and MCP tools connect to your running antd; the ant CLI and ant-core Rust client can connect directly. Follow each tool's source and README for setup and reference links; use the documentation index to discover current documentation pages.",
+  overview: "This is a read-only information service, not a gateway to the Autonomi network. It cannot upload, download or otherwise interact with network data. To use the network, choose a client-run interface: a local daemon for REST or gRPC, daemon-backed SDKs or MCP tools, the command-line client, or the direct Rust client. Start at developers.autonomi.com; agents should use developers.autonomi.com/llms.txt.",
   endpoints: [
     {
       path: "/api/health",
@@ -279,78 +279,79 @@ const DISCOVERY = {
       method: "GET",
       content_type: "text/plain",
       description:
-        "Circulating ANT supply as a bare integer string: total supply minus excluded-wallet balances, read live from Arbitrum (CoinMarketCap/CoinGecko format)",
+        "Circulating ANT supply as a bare integer string: total supply minus excluded-wallet balances read from Arbitrum, with cached and last-good fallback (CoinMarketCap/CoinGecko format)",
     },
     {
       path: "/api/supply",
       method: "GET",
       content_type: "application/json",
       description:
-        "Detailed supply breakdown including each excluded wallet's live balance",
+        "Detailed supply breakdown from Arbitrum, including each excluded wallet balance; cached or last-good data may be returned",
     },
     {
       path: "/api/pricing",
       method: "GET",
       content_type: "application/json",
-      description: "Rates and worked examples for estimating the cost of storing data on Autonomi. Storage rates are weighted averages of observed ant.report payments; transaction fees are averaged separately, and USD rates use historical CoinGecko medians. The record includes averaging windows, observation dates, calculation parameters, assumptions and exclusions. These are not live quotes or guaranteed prices. Collection or validation failure preserves the saved record and its original dates; inspect the returned observation dates.",
+      description: "Rates and worked examples for estimating the cost of storing data on Autonomi. Storage rates are weighted averages of observed ant.report payments; transaction fees are averaged separately, and USD rates use historical CoinGecko medians. The record includes averaging windows, observation dates, calculation parameters, assumptions and exclusions. These are not live quotes or guaranteed prices. Publisher collection or validation failure before publication leaves the previous saved record and its original dates; inspect the returned observation dates.",
     },
     {
       path: "/llms.txt",
       method: "GET",
       content_type: "text/plain",
-      description: "A plain-text directory of these endpoints, client repositories and documentation entry points.",
+      description: "A plain-text directory of these endpoints, network-access options and stable developer entry points.",
     },
   ],
   interfaces: [
     {
       id: "antd",
       name: "antd local daemon",
-      description: "Run antd on your own machine to store and retrieve Autonomi data through REST or gRPC. Its default REST address is http://127.0.0.1:8082, not api.autonomi.com. Keep it local: the daemon has no built-in authentication. Its external-signer flow lets applications prepare an upload, inspect payment details, pay externally and finalize; it is not a guaranteed all-in quote including transaction fees.",
+      description: "Run a local daemon when an application needs REST or gRPC for Autonomi network operations. Requests go to the daemon on your machine, not this hosted API.",
       access: "local-daemon",
       documentation: [
-        { label: "Source and README", url: "https://github.com/WithAutonomi/ant-sdk/tree/main/antd" },
+        { label: "Current daemon guidance", url: "https://developers.autonomi.com" },
       ],
     },
     {
       id: "daemon-sdks",
       name: "Daemon-backed language SDKs",
-      description: "These language clients call your running antd, not a hosted endpoint on this API. This connection model does not apply to every Autonomi SDK or FFI package.",
+      description: "Use daemon-backed language SDKs when an application should call a local daemon instead of connecting through this hosted API.",
       access: "daemon-client",
       documentation: [
-        { label: "Source and README", url: "https://github.com/WithAutonomi/ant-sdk" },
+        { label: "Current SDK guidance", url: "https://developers.autonomi.com" },
       ],
     },
     {
       id: "antd-mcp",
       name: "antd MCP tools",
-      description: "The local MCP server connects AI tools to your running antd. This API does not host an MCP service.",
+      description: "Use MCP tools to connect AI applications and agents to the network through a local daemon. This hosted API does not provide an MCP service.",
       access: "daemon-client",
       documentation: [
-        { label: "Source and README", url: "https://github.com/WithAutonomi/ant-sdk/tree/main/antd-mcp" },
+        { label: "Current agent-tool guidance", url: "https://developers.autonomi.com" },
       ],
     },
     {
       id: "ant",
       name: "ant command-line client",
-      description: "Use ant to access the network directly. Run ant file cost <PATH> for a file-specific estimate based on sampled network quotes, or ant --json file cost <PATH> for structured output. This does not upload, pay, reserve a price or cap later spending. The CLI obtains quotes and pays during upload; it currently has no separate quote-review-and-approve command. Its node-management daemon is separate from antd.",
+      description: "Use the command-line client for terminal-based network operations, including file-specific cost estimation, uploads and downloads.",
       access: "direct-network",
       documentation: [
-        { label: "Source and README", url: "https://github.com/WithAutonomi/ant-client" },
+        { label: "Current CLI guidance", url: "https://developers.autonomi.com" },
       ],
     },
     {
       id: "ant-core",
       name: "ant-core Rust client",
-      description: "Build directly on the network with the native Rust client. ant-core is not a wrapper around a daemon or command-line tool.",
+      description: "Build Rust applications that connect directly to the Autonomi network instead of calling this hosted API.",
       access: "direct-network",
       documentation: [
-        { label: "Source", url: "https://github.com/WithAutonomi/ant-client/tree/main/ant-core" },
+        { label: "Current Rust guidance", url: "https://developers.autonomi.com" },
       ],
     },
   ],
   documentation: [
-    { label: "Autonomi documentation", url: "https://docs.autonomi.com" },
-    { label: "Documentation llms.txt", url: "https://docs.autonomi.com/llms.txt" },
+    { label: "Autonomi Developers", url: "https://developers.autonomi.com" },
+    { label: "Developer llms.txt", url: "https://developers.autonomi.com/llms.txt" },
+    { label: "Network overview llms.txt", url: "https://autonomi.com/llms.txt" },
     { label: "API source and README", url: "https://github.com/WithAutonomi/api" },
   ],
 };

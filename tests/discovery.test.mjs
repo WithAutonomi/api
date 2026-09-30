@@ -13,7 +13,7 @@ test('root and llms share descriptions and links, distinguishing hosted informat
   assert.equal(llms.headers.get('x-content-type-options'), 'nosniff');
   assert.equal(llms.headers.get('cache-control'), 'public, max-age=3600');
   for (const description of [data.description, data.overview]) assert.ok(text.includes(description));
-  assert.match(data.overview, /not to upload or retrieve network data/);
+  assert.match(data.overview, /cannot upload, download or otherwise interact with network data/);
   assert.deepEqual(data.interfaces.map(i => [i.id, i.access]), [
     ['antd', 'local-daemon'], ['daemon-sdks', 'daemon-client'], ['antd-mcp', 'daemon-client'],
     ['ant', 'direct-network'], ['ant-core', 'direct-network'],
@@ -26,14 +26,32 @@ test('root and llms share descriptions and links, distinguishing hosted informat
   for (const { label, url } of [...data.documentation, ...data.interfaces.flatMap(i => i.documentation)]) {
     assert.ok(text.includes(`- [${label}](${url})`));
     assert.equal(new URL(url).protocol, 'https:');
+    assert.doesNotMatch(url, /\/tree\/main\/|docs\.autonomi\.com\/.+/);
+    assert.doesNotMatch(url, /github\.com\/WithAutonomi\/(ant-sdk|ant-client)(\/|$)/);
   }
+  assert.deepEqual(data.documentation, [
+    { label: 'Autonomi Developers', url: 'https://developers.autonomi.com' },
+    { label: 'Developer llms.txt', url: 'https://developers.autonomi.com/llms.txt' },
+    { label: 'Network overview llms.txt', url: 'https://autonomi.com/llms.txt' },
+    { label: 'API source and README', url: 'https://github.com/WithAutonomi/api' },
+  ]);
+  assert.ok(data.interfaces.every(entry =>
+    entry.documentation.length === 1 &&
+    entry.documentation[0].url === 'https://developers.autonomi.com'
+  ));
+  const supplyDescriptions = data.endpoints
+    .filter(endpoint => ['/api/circulating-supply', '/api/supply'].includes(endpoint.path))
+    .map(endpoint => endpoint.description)
+    .join(' ');
+  assert.doesNotMatch(supplyDescriptions, /\blive\b/i);
+  assert.match(supplyDescriptions, /cached|last-good/);
   assert.match(data.endpoints.find(e => e.path === '/api/pricing').description, /not live quotes or guaranteed prices/);
   assert.equal(data._links.pricing, 'https://api.example.test/api/pricing');
   assert.equal(data._links.llms, 'https://api.example.test/llms.txt');
-  assert.doesNotMatch(text, /curl |npm install|single_ant_per_chunk|data_revision/);
+  assert.doesNotMatch(text, /curl |npm install|ant file cost|127\.0\.0\.1|single_ant_per_chunk|data_revision/);
   assert.ok(text.endsWith('\n') && Buffer.byteLength(text) < 16384);
 });
-test('new llms method rules leave base root method/header quirks and legacy links intact', async t => {
+test('new llms method rules leave base root method/header quirks and local navigation links intact', async t => {
   const env = forbidIO(t);
   const baseline = await loadWorker(baseSource());
   for (const method of ['GET', 'OPTIONS', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']) {
